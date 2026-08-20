@@ -1,214 +1,180 @@
-# final_expert_rules.py (COMPLETE VERSION)
+# final_expert_rules.py (FIXED VERSION)
 """
-Expert-Defined CBA Rules - COMPREHENSIVE LIST
-Includes ALL known suspicious TLDs, domains, and patterns
+Expert-Defined CBA Rules - FIXED
+- Proper TLD matching (domain suffix, not substring)
+- Only genuinely abused TLDs (free/near-free)
+- Domain-only keyword checks
 """
 
 import re
 import joblib
+from urllib.parse import urlparse
 
 print("="*60)
-print("COMPREHENSIVE EXPERT RULES - ALL SUSPICIOUS PATTERNS")
+print("COMPREHENSIVE EXPERT RULES - FIXED VERSION")
 print("="*60)
 
-# ===================== COMPLETE SUSPICIOUS TLDS =====================
+# ===================== ONLY GENUINELY ABUSED TLDS =====================
+# NOT: .in, .co, .io, .me, .uk, .de, etc. (these are legitimate ccTLDs)
+# ONLY: free/near-free TLDs with no verification requirements
 
-# ALL known suspicious TLDs (200+)
 SUSPICIOUS_TLDS = [
-    # Free/Cheap TLDs (most abused)
-    '.tk', '.ml', '.ga', '.cf', '.gq',  # Freenom TLDs
-    '.xyz', '.top', '.club', '.work', '.info', '.biz',
-    '.online', '.live', '.stream', '.dates', '.download',
-    '.review', '.click', '.link', '.site', '.tech',
-    '.store', '.shop', '.space', '.pro', '.app',
+    # Freenom TLDs (completely free, heavily abused)
+    '.tk', '.ml', '.ga', '.cf', '.gq',
     
-    # New gTLDs (often abused)
-    '.agency', '.bar', '.boutique', '.buzz', '.ceo',
-    '.center', '.coach', '.company', '.cool', '.credit',
-    '.digital', '.direct', '.events', '.expert', '.express',
-    '.financial', '.forsale', '.free', '.global', '.guru',
-    '.help', '.host', '.international', '.investments', '.io',
-    '.legal', '.life', '.ltd', '.market', '.marketing',
-    '.media', '.mobile', '.network', '.news', '.ninja',
-    '.page', '.partners', '.photo', '.photos', '.pics',
-    '.press', '.promo', '.purchase', '.rocks', '.run',
-    '.services', '.solutions', '.support', '.systems', '.team',
-    '.technology', '.today', '.tools', '.training', '.uno',
-    '.ventures', '.vip', '.vision', '.website', '.works',
-    
-    # Country TLDs often abused
-    '.am', '.by', '.cc', '.cm', '.cn', '.co', '.cz',
-    '.ee', '.fm', '.gd', '.gs', '.hn', '.ht', '.in',
-    '.io', '.ir', '.kh', '.ki', '.li', '.lr', '.lt',
-    '.lv', '.ma', '.md', '.me', '.mg', '.mk', '.ml',
-    '.mn', '.ms', '.mt', '.mu', '.mv', '.mw', '.mx',
-    '.my', '.mz', '.na', '.nf', '.ng', '.ni', '.nl',
-    '.no', '.np', '.nr', '.nu', '.nz', '.om', '.pa',
-    '.pe', '.pf', '.pg', '.ph', '.pk', '.pl', '.pm',
-    '.pn', '.pr', '.ps', '.pt', '.pw', '.py', '.qa',
-    '.re', '.ro', '.rs', '.ru', '.rw', '.sa', '.sb',
-    '.sc', '.sd', '.se', '.sg', '.sh', '.si', '.sk',
-    '.sl', '.sm', '.sn', '.so', '.sr', '.st', '.su',
-    '.sv', '.sx', '.sy', '.sz', '.tc', '.td', '.tf',
-    '.tg', '.th', '.tj', '.tk', '.tl', '.tm', '.tn',
-    '.to', '.tr', '.tt', '.tv', '.tw', '.tz', '.ua',
-    '.ug', '.uk', '.us', '.uy', '.uz', '.va', '.vc',
-    '.ve', '.vg', '.vi', '.vn', '.vu', '.ws', '.ye',
-    '.yt', '.za', '.zm', '.zw',
-    
-    # New popular abuse TLDs
-    '.click', '.rest', '.xyz', '.top', '.loan', '.men',
-    '.win', '.bid', '.date', '.download', '.review',
-    '.trade', '.webcam', '.science', '.party', '.racing',
-    '.accountant', '.faith', '.wang', '.sbs', '.aaa',
-    '.zip', '.mov', '.realestate', '.spa', '.song',
+    # Cheap/Free gTLDs with high abuse rates
+    '.xyz', '.top', '.click', '.link', '.download',
+    '.review', '.stream', '.loan', '.work', '.men',
+    '.party', '.science', '.racing', '.bid', '.win',
+    '.faith', '.accountant', '.date', '.trade', '.webcam',
+    '.zip', '.mov', '.rest', '.sbs', '.aaa', '.wang',
+    '.online', '.live', '.site', '.tech', '.store',
+    '.shop', '.space', '.pro', '.club', '.biz',
 ]
 
-# ===== SENSITIVE WORDS (Global) =====
-sensitive_words = [
-    'login', 'verify', 'secure', 'update', 'confirm',
-    'password', 'credit', 'signin', 'account', 'validate',
-    'authenticate', 'verification', 'security', 'captcha',
-    'authentication', 'billing', 'payment', 'transaction',
-    'alert', 'notice', 'warning', 'suspended', 'limited',
-    'restricted', 'locked', 'frozen', 'unauthorized',
-    'activate', 'recover', 'reset', 'unlock', 'access',
-]
+# ===================== HELPER FUNCTIONS =====================
 
-# ===== BRANDS (Global) =====
-brands = [
-    'paypal', 'amazon', 'apple', 'google', 'microsoft',
-    'facebook', 'github', 'twitter', 'instagram', 'linkedin',
-    'netflix', 'spotify', 'tiktok', 'snapchat', 'pinterest',
-    'whatsapp', 'telegram', 'discord', 'reddit',
-    'bankofamerica', 'chase', 'wellsfargo', 'capitalone',
-    'citibank', 'hsbc', 'barclays', 'jpmorgan',
-    'banestes', 'bradesco', 'itau', 'santander', 'caixa', 'bb',
-    'sicoob', 'sicredi', 'inter', 'c6bank', 'nubank',
-    'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'yesbank',
-    'idfc', 'pnb', 'canara', 'indianbank', 'iob',
-    'bankofbaroda', 'unionbank', 'aufin',
-    'binance', 'coinbase', 'kraken', 'blockchain', 'metamask',
-]
+def get_domain_from_url(url):
+    """Extract clean domain from URL"""
+    try:
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower().split(':')[0]
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        return domain
+    except:
+        return ''
 
-# ===== SHORTENERS (Global) =====
-shorteners = [
-    'bit.ly', 'tinyurl', 'goo.gl', 'shorturl', 'is.gd',
-    'ow.ly', 'buff.ly', 'rebrand.ly', 'tiny.cc', 't.co',
-    'lnkd.in', 'tiny.one', 'shorte.st', 'cli.gs', 'j.mp',
-]
+def get_tld_from_domain(domain):
+    """Extract TLD from domain"""
+    parts = domain.split('.')
+    if len(parts) >= 2:
+        tld = '.' + parts[-1]
+        # Handle .co.in, .com.au, etc.
+        if len(parts) >= 3 and parts[-2] in ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac']:
+            tld = '.' + parts[-2] + '.' + parts[-1]
+        return tld
+    return domain
 
-# ===================== SUSPICIOUS DOMAINS (Patterns) =====================
+def has_suspicious_tld(domain):
+    """Check if domain ends with any suspicious TLD"""
+    return any(domain.endswith(tld) for tld in SUSPICIOUS_TLDS)
 
-SUSPICIOUS_DOMAIN_PATTERNS = [
-    # Random alphanumeric domains
-    r'[a-z0-9]{15,}\.',
-    r'[a-z]{10,}[0-9]{5,}\.',
-    r'[0-9]{6,}[a-z]{6,}\.',
-    
-    # Typosquatting patterns
-    'rnicrosoft.com', 'ggoogle.com', 'faccbook.com',
-    'amazoon.com', 'paypall.com', 'facebok.com',
-    
-    # Common phishing keywords
-    'verify', 'secure', 'login', 'signin', 'account',
-    'update', 'confirm', 'validate', 'authenticate',
-    'security', 'billing', 'payment', 'transaction',
-    'alert', 'notice', 'warning', 'suspended',
-    'limited', 'restricted', 'locked', 'frozen',
-    'unauthorized', 'suspicious', 'activity',
-]
-
-# ===================== OFFICIAL DOMAINS (WHITELIST) =====================
+# ===================== CONFIGURATION =====================
 
 OFFICIAL_DOMAINS = [
     # Social Media
-    'google.com', 'facebook.com', 'twitter.com', 'instagram.com',
-    'linkedin.com', 'youtube.com', 'reddit.com', 'github.com',
+    'google.com', 'youtube.com', 'facebook.com', 'twitter.com',
+    'instagram.com', 'linkedin.com', 'reddit.com', 'github.com',
     'tiktok.com', 'snapchat.com', 'pinterest.com', 'whatsapp.com',
+    'telegram.org', 'discord.com', 'twitch.tv',
     
     # E-commerce
-    'amazon.com', 'ebay.com', 'flipkart.com', 'walmart.com',
-    'target.com', 'shopify.com', 'etsy.com', 'alibaba.com',
-    'aliexpress.com', 'bestbuy.com', 'homedepot.com',
+    'amazon.com', 'amazon.in', 'ebay.com', 'flipkart.com',
+    'walmart.com', 'target.com', 'shopify.com', 'etsy.com',
+    'alibaba.com', 'aliexpress.com', 'bestbuy.com',
     
     # Banking (International)
     'paypal.com', 'bankofamerica.com', 'chase.com', 'wellsfargo.com',
     'capitalone.com', 'citibank.com', 'hsbc.com', 'barclays.com',
-    'jpmorgan.com', 'goldmansachs.com', 'morganstanley.com',
     
     # Banking (Brazil)
-    'banestes.com.br', 'banestes.com', 'bradesco.com.br', 'itau.com.br',
-    'santander.com.br', 'bb.com.br', 'caixa.gov.br', 'sicoob.com.br',
-    'sicredi.com.br', 'inter.co', 'c6bank.com',
+    'banestes.com.br', 'banestes.com', 'bradesco.com.br',
+    'itau.com.br', 'santander.com.br', 'bb.com.br', 'caixa.gov.br',
     
     # Banking (India)
     'hdfcbank.com', 'icicibank.com', 'axisbank.com', 'sbi.co.in',
     'kotak.com', 'yesbank.in', 'idfcfirstbank.com', 'aufin.com',
-    'pnbindia.in', 'canarabank.com', 'indianbank.in', 'iob.in',
+    'pnbindia.in', 'canarabank.com', 'indianbank.in',
     'bankofbaroda.in', 'unionbankofindia.co.in',
-    
-    # Banking (Other)
-    'anz.com.au', 'commonwealth.com.au', 'westpac.com.au',
-    'nab.com.au', 'rbc.com', 'td.com', 'bmo.com', 'scotiabank.com',
     
     # Tech
     'microsoft.com', 'apple.com', 'ibm.com', 'oracle.com',
     'salesforce.com', 'adobe.com', 'intel.com', 'nvidia.com',
-    'amd.com', 'cisco.com', 'vmware.com', 'dell.com',
-    'hp.com', 'lenovo.com', 'acer.com', 'asus.com',
+    'amd.com', 'cisco.com', 'dell.com', 'hp.com',
     
     # News
     'cnn.com', 'bbc.com', 'reuters.com', 'bloomberg.com',
-    'nytimes.com', 'wsj.com', 'economictimes.com', 'foxnews.com',
-    'nbcnews.com', 'theguardian.com', 'washingtonpost.com',
+    'nytimes.com', 'wsj.com', 'economictimes.com',
     
-    # Government
-    '.gov', '.mil', '.edu', '.ac.uk', '.edu.au',
-    '.gov.br', '.gov.in', '.mod.uk', '.gouv.fr',
-    
-    # Additional common domains
-    'yahoo.com', 'bing.com', 'duckduckgo.com', 'protonmail.com',
-    'gmail.com', 'outlook.com', 'office.com', 'drive.google.com',
+    # Other
+    'yahoo.com', 'bing.com', 'duckduckgo.com', 'outlook.com',
+    'office.com', 'protonmail.com', 'stackoverflow.com',
+    'medium.com', 'wikipedia.org', 'github.io',
 ]
 
-def check_phishing_rules_complete(url):
+SENSITIVE_WORDS = [
+    'login', 'verify', 'secure', 'update', 'confirm',
+    'password', 'account', 'signin', 'validate',
+    'authenticate', 'verification', 'security', 'captcha',
+    'billing', 'payment', 'transaction', 'activate',
+    'recover', 'reset', 'unlock', 'access',
+]
+
+BRANDS = [
+    # Social Media
+    'paypal', 'amazon', 'apple', 'google', 'microsoft',
+    'facebook', 'github', 'twitter', 'instagram', 'linkedin',
+    'netflix', 'spotify', 'tiktok', 'snapchat', 'discord',
+    
+    # Banks International
+    'bankofamerica', 'chase', 'wellsfargo', 'capitalone',
+    'citibank', 'hsbc', 'barclays', 'jpmorgan',
+    
+    # Banks Brazil
+    'banestes', 'bradesco', 'itau', 'santander', 'caixa',
+    'sicoob', 'sicredi', 'inter', 'c6bank', 'nubank',
+    
+    # Banks India
+    'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'yesbank',
+    'idfc', 'pnb', 'canara', 'indianbank', 'iob',
+    'bankofbaroda', 'unionbank', 'aufin',
+]
+
+SHORTENERS = [
+    'bit.ly', 'tinyurl', 'goo.gl', 'shorturl', 'is.gd',
+    'ow.ly', 'buff.ly', 'rebrand.ly', 'tiny.cc', 't.co',
+    'lnkd.in', 'tiny.one', 'shorte.st',
+]
+
+# ===================== RULE CHECKING FUNCTION =====================
+
+def check_phishing_rules_fixed(url):
     """
-    Check expert-defined phishing rules - COMPLETE VERSION
+    Check expert-defined phishing rules - FIXED VERSION
+    - Proper TLD matching on domain suffix
+    - Keywords checked against DOMAIN only, not path/query
+    - No false positives for .in, .co, .io, etc.
     """
     url_lower = url.lower()
     triggered = []
     explanations = []
     
-    # Clean URL
-    clean_url = re.sub(r'^https?://', '', url_lower)
-    clean_url = re.sub(r'^www\.', '', clean_url)
+    # Extract domain
+    domain = get_domain_from_url(url)
+    if not domain:
+        return False, 0, [], ['Unable to parse URL']
+    
+    # Extract TLD properly
+    tld = get_tld_from_domain(domain)
     
     # Check official domain (WHITELIST)
     is_official = False
-    for domain in OFFICIAL_DOMAINS:
-        if clean_url.startswith(domain) or f'.{domain}' in clean_url:
+    for official in OFFICIAL_DOMAINS:
+        if domain.endswith(official):
             is_official = True
-            explanations.append(f"Official domain: {domain}")
+            explanations.append(f"Official domain: {official}")
             break
     
-    # Check if it's a government/edu domain
-    if '.gov' in clean_url or '.edu' in clean_url:
-        is_official = True
-        explanations.append("Official .gov or .edu domain")
-    
-    # If official domain → LEGITIMATE immediately
     if is_official:
         return False, 0.99, [], explanations
     
-    # Rule 1: Suspicious TLD
-    suspicious_tld_found = False
-    for tld in SUSPICIOUS_TLDS:
-        if tld in url_lower:
-            suspicious_tld_found = True
-            triggered.append(('Suspicious TLD', 0.85))
-            explanations.append(f"Suspicious TLD: {tld}")
-            break
+    # Rule 1: Suspicious TLD (ONLY on the actual TLD)
+    if has_suspicious_tld(domain):
+        triggered.append(('Suspicious TLD', 0.85))
+        explanations.append(f"Suspicious TLD: {tld}")
     
     # Rule 2: IP Address
     if re.search(r'\d+\.\d+\.\d+\.\d+', url):
@@ -221,69 +187,43 @@ def check_phishing_rules_complete(url):
         explanations.append("@ symbol in URL (credential phishing)")
     
     # Rule 4: Shortened URL
-    shorteners = ['bit.ly', 'tinyurl', 'goo.gl', 'shorturl', 'is.gd', 'ow.ly',
-                  'buff.ly', 'rebrand.ly', 'tiny.cc', 't.co', 'lnkd.in']
-    if any(s in url_lower for s in shorteners):
+    if any(s in url_lower for s in SHORTENERS):
         triggered.append(('Shortened URL', 0.70))
         explanations.append("Shortened URL hides destination")
     
-    # Rule 5: Brand misuse
-    brands = ['paypal', 'amazon', 'apple', 'google', 'microsoft', 'facebook',
-              'github', 'twitter', 'instagram', 'linkedin', 'netflix', 'spotify',
-              'bankofamerica', 'chase', 'wellsfargo', 'capitalone', 'citibank',
-              'banestes', 'bradesco', 'itau', 'santander', 'caixa', 'bb',
-              'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'yesbank', 'idfc',
-              'hsbc', 'barclays', 'anz', 'commonwealth', 'westpac', 'nab']
+    # Rule 5: Brand misuse (ONLY if brand in DOMAIN, not path)
+    has_brand_in_domain = any(brand in domain for brand in BRANDS)
+    has_sensitive_in_domain = any(word in domain for word in SENSITIVE_WORDS)
     
-    sensitive_words = ['login', 'verify', 'secure', 'update', 'confirm',
-                       'password', 'credit', 'signin', 'account', 'validate',
-                       'authenticate', 'verification', 'security', 'captcha',
-                       'authentication', 'billing', 'payment', 'transaction',
-                       'alert', 'notice', 'warning', 'suspended', 'limited',
-                       'restricted', 'locked', 'frozen', 'unauthorized']
-    
-    has_sensitive = any(word in url_lower for word in sensitive_words)
-    has_brand = any(brand in url_lower for brand in brands)
-    
-    if has_brand and has_sensitive:
-        # Check if exact official domain
-        is_brand_com = any(f'{brand}.com' in url_lower for brand in brands)
-        is_brand_br = any(f'{brand}.com.br' in url_lower for brand in brands)
-        is_brand_in = any(f'{brand}.in' in url_lower or f'{brand}.co.in' in url_lower for brand in brands)
+    if has_brand_in_domain and has_sensitive_in_domain:
+        # Check if official domain
+        is_brand_com = any(f'{brand}.com' in domain for brand in BRANDS)
+        is_brand_in = any(f'{brand}.in' in domain or f'{brand}.co.in' in domain for brand in BRANDS)
+        is_brand_br = any(f'{brand}.com.br' in domain for brand in BRANDS)
         
-        if not is_brand_com and not is_brand_br and not is_brand_in:
+        if not is_brand_com and not is_brand_in and not is_brand_br:
             triggered.append(('Brand misuse', 0.88))
-            explanations.append("Brand name used with sensitive keywords")
+            explanations.append("Brand name used with sensitive keywords in domain")
     
     # Rule 6: Suspicious subdomain
-    domain_part = clean_url.split('/')[0]
-    subdomain = domain_part.split('.')[0] if '.' in domain_part else ''
+    parts = domain.split('.')
+    subdomain = parts[0] if len(parts) > 2 else ''
     
-    # Random subdomain check
     if len(subdomain) > 10 and (re.search(r'\d{3,}', subdomain) or re.search(r'[a-z]\d{5,}', subdomain)):
         triggered.append(('Random subdomain', 0.75))
         explanations.append(f"Suspicious random subdomain: {subdomain}")
     
     # Rule 7: Multiple subdomains
-    dot_count = domain_part.count('.')
+    dot_count = domain.count('.')
     if dot_count > 3:
         triggered.append(('Multiple subdomains', 0.75))
         explanations.append(f"Multiple subdomains ({dot_count} dots)")
     
-    # Rule 8: HTTP for sensitive pages
-    if url.startswith('http://') and has_sensitive:
+    # Rule 8: HTTP for sensitive pages (path-based, so keep)
+    has_sensitive_in_path = any(word in url_lower for word in SENSITIVE_WORDS)
+    if url.startswith('http://') and has_sensitive_in_path:
         triggered.append(('HTTP for sensitive page', 0.70))
         explanations.append("HTTP (insecure) for login/secure page")
-    
-    # Rule 9: PHP script with sensitive words
-    if '.php' in url_lower and has_sensitive:
-        triggered.append(('PHP script with sensitive words', 0.75))
-        explanations.append("PHP script combined with sensitive keywords")
-    
-    # Rule 10: Very long URL
-    if len(url) > 100:
-        triggered.append(('Very long URL', 0.65))
-        explanations.append("Very long URL (possible obfuscation)")
     
     # Calculate confidence
     if triggered:
@@ -294,46 +234,54 @@ def check_phishing_rules_complete(url):
         return False, 0, [], explanations
 
 # ===================== TEST =====================
+
+print("\n=== TESTING FIXED RULES ===\n")
+
 test_urls = [
-    # Legitimate
-    "https://www.google.com",
-    "https://www.amazon.com",
-    "https://banestes.com.br",
+    # Legitimate (should NOT be flagged)
+    "https://phishguard.co.in",
+    "https://www.google.co.in",
+    "https://www.amazon.in",
     "https://www.hdfcbank.com",
+    "https://www.sbi.co.in",
+    "https://www.icicibank.com",
+    "https://www.yesbank.in",
+    "https://www.flipkart.com",
+    "https://www.github.com",
+    "https://stackoverflow.com",
     
-    # Phishing
-    "https://ouhari.direc4571512.pro/captcha.php",
-    "http://banestes.instaladorpj.com",
-    "https://secure-login.paypal-verify.xyz",
+    # Phishing (should be flagged)
+    "https://hdfc-secure-login.xyz",
+    "https://paypai-secure-verify.xyz",
+    "https://amaz0n-verify.account-security.top",
     "http://bit.ly/3xYZ123",
     "http://192.168.1.1/login",
-    "https://amazon-verify.account-security.top",
+    "https://secure-login-paypal.xyz",
 ]
 
-print("\n=== TESTING COMPLETE RULES ===\n")
+print("-" * 70)
 for url in test_urls:
-    is_phishing, confidence, triggered, explanations = check_phishing_rules_complete(url)
+    is_phishing, confidence, triggered, explanations = check_phishing_rules_fixed(url)
     status = "⚠️ PHISHING" if is_phishing else "✅ LEGITIMATE"
     print(f"{status} ({confidence:.1%}) - {url}")
     if explanations:
-        for exp in explanations[:3]:  # Show top 3 reasons
+        for exp in explanations[:2]:  # Show top 2 reasons
             print(f"  → {exp}")
     print()
 
 # ===================== SAVE =====================
+
 rules_config = {
     'official_domains': OFFICIAL_DOMAINS,
     'suspicious_tlds': SUSPICIOUS_TLDS,
-    'sensitive_words': sensitive_words,
-    'brands': brands,
-    'shorteners': shorteners,
-    'suspicious_domain_patterns': SUSPICIOUS_DOMAIN_PATTERNS
+    'sensitive_words': SENSITIVE_WORDS,
+    'brands': BRANDS,
+    'shorteners': SHORTENERS
 }
 
-joblib.dump(rules_config, '../models/cba_expert_rules_final.pkl')
-print("\n✅ Complete expert rules saved to 'models/cba_expert_rules_final.pkl'")
-print(f"   - Suspicious TLDs: {len(SUSPICIOUS_TLDS)}")
+joblib.dump(rules_config, 'models/cba_expert_rules_final.pkl')
+print("\n✅ Fixed expert rules saved to 'models/cba_expert_rules_final.pkl'")
+print(f"   - Suspicious TLDs: {len(SUSPICIOUS_TLDS)} (ONLY free/abused)")
 print(f"   - Official Domains: {len(OFFICIAL_DOMAINS)}")
-print(f"   - Sensitive Words: {len(sensitive_words)}")
-print(f"   - Brands: {len(brands)}")
-print(f"   - Shorteners: {len(shorteners)}")
+print(f"   - Sensitive Words: {len(SENSITIVE_WORDS)}")
+print(f"   - Brands: {len(BRANDS)}")
