@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚠️ PhishingNet - Warning</title>
+  <link rel="stylesheet" href="warning.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">🛡️</div>
+      <h1>PhishingNet</h1>
+      <p class="subtitle" id="statusBadge">⚠️ Phishing Detected!</p>
+    </div>
+
+    <div class="content">
+      <div class="url-section">
+        <p class="label">🚨 Suspicious URL:</p>
+        <div class="url-box" id="blockedUrl">Loading...</div>
+      </div>
+
+      <div class="confidence-section">
+        <div class="confidence-bar">
+          <div class="confidence-fill" id="confidenceFill" style="width: 0%;"></div>
+        </div>
+        <p class="confidence-text">Phishing Confidence: <span id="confidenceText">0%</span></p>
+      </div>
+
+      <div class="reason-section">
+        <p class="label">🔍 Why was this blocked?</p>
+        <ul id="reasonList">
+          <li>Analyzing...</li>
+        </ul>
+      </div>
+
+      <!-- Three-Tier Status Badge -->
+      <div style="text-align: center;">
+        <span class="status-badge" id="tierBadge">⚠️ PHISHING</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-danger" id="goBackBtn">
+          🔙 Go Back to Safety
+        </button>
+        <button class="btn btn-warning" id="continueBtn">
+          ⚠️ I Understand the Risk (Continue)
+        </button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Made with ❤️ by Oxford College Students</p>
+      <p class="team">Ameen • Abdul • Mohit • Sahil</p>
+    </div>
+  </div>
+
+  <!-- Script at the bottom -->
+  <script src="warning.js"></script>
+</body>
+</html>

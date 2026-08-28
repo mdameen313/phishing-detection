@@ -215,10 +215,18 @@ class HybridPhishingDetector:
         return features
     
     def predict(self, url):
-        """Hybrid prediction"""
+        """
+        Hybrid prediction with THREE-TIER THRESHOLD SYSTEM:
+        - >= 0.65: PHISHING (block immediately)
+        - 0.45 - 0.64: SUSPICIOUS (LLM analysis needed)
+        - < 0.45: LEGITIMATE (allow navigation)
+        """
         is_phishing, cba_confidence, triggered_rules, explanations = self.check_expert_rules(url)
         
-        # Layer 1: CBA Rules
+        # ============================================================
+        # LAYER 1: CBA Rules (Fast Path)
+        # ============================================================
+        # CBA says phishing with confidence >= 0.70 → PHISHING
         if is_phishing and cba_confidence >= 0.70:
             return {
                 'verdict': 'phishing',
@@ -228,7 +236,7 @@ class HybridPhishingDetector:
                 'details': explanations
             }
         
-        # Official domain whitelist
+        # Official domain whitelist → LEGITIMATE
         if explanations and 'Official domain' in explanations[0]:
             return {
                 'verdict': 'legitimate',
@@ -238,7 +246,7 @@ class HybridPhishingDetector:
                 'details': explanations
             }
         
-        # No rules triggered → likely legitimate
+        # No rules triggered → likely LEGITIMATE
         if not is_phishing and not triggered_rules:
             return {
                 'verdict': 'legitimate',
@@ -248,7 +256,9 @@ class HybridPhishingDetector:
                 'details': explanations
             }
         
-        # Layer 2: Random Forest
+        # ============================================================
+        # LAYER 2: Random Forest
+        # ============================================================
         features_dict = self.extract_features(url)
         features_df = pd.DataFrame([features_dict])
         features_df = features_df[self.feature_cols]
@@ -259,19 +269,36 @@ class HybridPhishingDetector:
         prob = self.rf_model.predict_proba(features_scaled)[0][1]
         pred = 1 if prob >= 0.5 else 0
         
-        if prob >= 0.85:
+        # ============================================================
+        # THREE-TIER THRESHOLD SYSTEM
+        # ============================================================
+        
+        # Tier 1: PHISHING (≥ 0.65)
+        if prob >= 0.65:
             return {
-                'verdict': 'phishing' if pred == 1 else 'legitimate',
-                'confidence': prob if pred == 1 else (1 - prob),
+                'verdict': 'phishing',
+                'confidence': prob,
                 'layer': 'RandomForest',
                 'explanation': f'RF: {prob:.1%} phishing confidence',
                 'details': explanations
             }
+        
+        # Tier 2: SUSPICIOUS (0.45 - 0.64) → LLM needed
+        elif prob >= 0.45:
+            return {
+                'verdict': 'suspicious',
+                'confidence': prob,
+                'layer': 'RandomForest',
+                'explanation': f'Uncertain ({prob:.1%}) - LLM analysis needed',
+                'details': explanations
+            }
+        
+        # Tier 3: LEGITIMATE (< 0.45)
         else:
             return {
                 'verdict': 'legitimate',
                 'confidence': 1 - prob,
-                'layer': 'Default',
+                'layer': 'RandomForest',
                 'explanation': f'Low confidence ({prob:.1%}) - classified as legitimate',
                 'details': explanations
             }
@@ -296,8 +323,15 @@ if __name__ == "__main__":
         "http://192.168.1.1/login",
     ]
     
+    print("\n" + "="*70)
+    print("TESTING HYBRID MODEL (THREE-TIER THRESHOLD SYSTEM)")
+    print("="*70)
+    print("Thresholds: ≥ 0.65 = PHISHING, 0.45-0.64 = SUSPICIOUS, < 0.45 = LEGITIMATE")
+    print("-"*70)
+    
     for url in test_urls:
         result = detector.predict(url)
-        print(f"{result['verdict'].upper()}: {url}")
+        status = "🚨 PHISHING" if result['verdict'] == 'phishing' else "✅ LEGITIMATE" if result['verdict'] == 'legitimate' else "❓ SUSPICIOUS"
+        print(f"{status}: {url}")
         print(f"  Layer: {result['layer']}, Confidence: {result['confidence']:.1%}")
         print(f"  Why: {result['explanation']}\n")
