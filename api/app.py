@@ -1,4 +1,4 @@
-# api/app.py (Updated with Three-Tier Threshold System)
+# api/app.py
 
 import sys
 import os
@@ -18,7 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from hybrid_model_fixed_v2 import HybridPhishingDetector
 
 app = Flask(__name__)
-CORS(app)
+
+# FIX: Allow ALL origins so the browser extension can communicate
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # ===================== INITIALIZE DETECTOR =====================
 print("="*60)
@@ -44,7 +46,6 @@ try:
         llm_model = genai.GenerativeModel('gemini-1.5-flash')
         USE_LLM = True
         print("✅ Gemini LLM initialized (conditional mode)")
-        print(f"   LLM will only trigger for suspicious/ambiguous URLs")
     else:
         print("⚠️ GEMINI_API_KEY not set. LLM disabled.")
 except ImportError:
@@ -101,7 +102,6 @@ def check_ssl_certificate(url):
         return False, None, None
 
 def analyze_with_llm(url, ml_confidence, ml_explanation):
-    """Use Gemini LLM for deep analysis"""
     global app
     
     if not USE_LLM or llm_model is None:
@@ -163,12 +163,7 @@ def home():
         'version': '3.0.0',
         'status': 'running',
         'llm_enabled': USE_LLM,
-        'threshold_system': {
-            'phishing': '≥ 0.65',
-            'suspicious': '0.45 - 0.64',
-            'legitimate': '< 0.45'
-        },
-        'llm_trigger_condition': 'ML confidence < 0.65 OR suspicious/ambiguous'
+        'llm_trigger_condition': 'ML confidence < 70% OR ambiguous'
     })
 
 @app.route('/health', methods=['GET'])
@@ -210,15 +205,8 @@ def predict():
         if domain_age is not None:
             if domain_age < 7:
                 extra_details.append(f"⚠️ Domain {domain_age} days old (very new)")
-                # Boost confidence for very new domains
-                if result['confidence'] < 0.70:
-                    result['confidence'] = min(result['confidence'] + 0.20, 0.95)
-                    if result['verdict'] not in ['phishing', 'suspicious']:
-                        result['verdict'] = 'suspicious'
             elif domain_age < 30:
                 extra_details.append(f"⚠️ Domain {domain_age} days old")
-                if result['confidence'] < 0.60:
-                    result['confidence'] = min(result['confidence'] + 0.10, 0.90)
             else:
                 extra_details.append(f"✅ Domain age: {domain_age} days")
         else:
@@ -229,11 +217,6 @@ def predict():
                 extra_details.append(f"✅ SSL valid ({ssl_days} days left)")
             else:
                 extra_details.append("❌ Invalid SSL certificate")
-                # Boost confidence for invalid SSL
-                if result['confidence'] < 0.65:
-                    result['confidence'] = min(result['confidence'] + 0.20, 0.95)
-                    if result['verdict'] not in ['phishing']:
-                        result['verdict'] = 'phishing'
         else:
             extra_details.append("❓ SSL status unknown")
         
@@ -243,10 +226,8 @@ def predict():
         llm_used = False
         llm_result = {}
         
-        # Determine if LLM is needed (Three-Tier System)
         needs_llm = (
             USE_LLM and (
-                result['verdict'] == 'suspicious' or
                 result['verdict'] == 'ambiguous' or
                 result['confidence'] < 0.65 or
                 (domain_age is not None and domain_age < 7) or
@@ -256,8 +237,6 @@ def predict():
         
         if needs_llm:
             print(f"🧠 LLM Triggered: {url[:50]}...")
-            print(f"   Reason: Verdict={result['verdict']}, Confidence={result['confidence']:.1%}")
-            
             llm_verdict, llm_confidence, llm_explanation = analyze_with_llm(
                 url, result['confidence'], result.get('explanation', '')
             )
@@ -273,12 +252,6 @@ def predict():
                 final_confidence = max(result['confidence'], llm_confidence)
                 final_layer = f"{result['layer']} + LLM"
                 final_explanation = f"ML: {result.get('explanation', '')} | LLM: {llm_explanation}"
-            elif result['verdict'] == 'suspicious':
-                # If ML says suspicious and LLM is uncertain → safe default (legitimate)
-                final_verdict = 'legitimate'
-                final_confidence = 1 - result['confidence']
-                final_layer = f"{result['layer']} + LLM_Fallback"
-                final_explanation = f"LLM uncertain on suspicious URL: {llm_explanation[:100]}"
             else:
                 final_verdict = result['verdict']
                 final_confidence = result['confidence']
@@ -308,7 +281,6 @@ def predict():
         if llm_used:
             response['llm_result'] = llm_result
         
-        # Store in cache
         if len(cache) >= CACHE_SIZE:
             del cache[next(iter(cache))]
         cache[url_hash] = response
@@ -327,21 +299,12 @@ def stats():
         'cache_misses': app.cache_misses,
         'llm_calls': app.llm_calls,
         'cache_size': len(cache),
-        'llm_enabled': USE_LLM,
-        'threshold_system': {
-            'phishing': '≥ 0.65',
-            'suspicious': '0.45 - 0.64',
-            'legitimate': '< 0.45'
-        }
+        'llm_enabled': USE_LLM
     })
 
 @app.route('/clear_cache', methods=['POST'])
 def clear_cache():
     cache.clear()
-    app.cache_hits = 0
-    app.cache_misses = 0
-    app.total_predictions = 0
-    app.llm_calls = 0
     return jsonify({'message': 'Cache cleared'})
 
 if __name__ == '__main__':
@@ -349,9 +312,5 @@ if __name__ == '__main__':
     print(f"🚀 API Server Starting...")
     print(f"📍 http://127.0.0.1:5000")
     print(f"🤖 LLM Enabled: {USE_LLM} (conditional)")
-    print(f"\n📊 Three-Tier Threshold System:")
-    print(f"   🔴 PHISHING:    ≥ 0.65")
-    print(f"   🟡 SUSPICIOUS:  0.45 - 0.64")
-    print(f"   🟢 LEGITIMATE:  < 0.45")
     print("="*60 + "\n")
     app.run(host='0.0.0.0', port=5000, debug=True)
