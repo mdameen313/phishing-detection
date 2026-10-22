@@ -6,3 +6,8 @@ scikit-learn
 joblib
 tldextract
 gunicorn
+google-generativeai
+requests
+python-whois
+pyopenssl
+groq

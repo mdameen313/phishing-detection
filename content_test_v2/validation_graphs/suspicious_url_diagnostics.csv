@@ -1,0 +1,33 @@
+url,true_label,rf_prob,content_score,status,signals,path
+norwestcooling.com/applications/power-generation.html,1,0.5401296680687997,0.0,success,,Content-Legitimate
+wilencote.co.nz/wp-includes/temp.php?file=security_measures.html,1,0.6107504280333935,0.0,success,,Content-Uncertain
+people.com/people/article/0%2c%2c20042281%2c00.html,0,0.46635181074673343,0.0,success,,Content-Legitimate
+txellwebs.com/blog/wp-content/scap/0e697a052a23d25b5cc9be2dd8a5e8cd/webscr.html,1,0.6448951860693852,0.0,failed,"fetch_failed: HTTPConnectionPool(host='txellwebs.com', port=80):",FetchFailed-Phishing
+foroalcazares.com/index.php/noticias?start=30,1,0.5053306170631089,0.0,failed,"fetch_failed: HTTPConnectionPool(host='foroalcazares.com', port=",FetchFailed-Phishing
+auctionyourart.com/contact-us/69.html,1,0.5258661622234034,0.2,success,meta_refresh_redirect,Content-Legitimate
+transx.com,0,0.5981827155717201,0.0,success,,Content-Uncertain
+spbshkaf.ru/catalog/item/gabry2,1,0.47694718521767265,0.0,failed,"fetch_failed: HTTPConnectionPool(host='spbshkaf.ru', port=80): M",Content-Failed
+beatportal.com/feed/item/aleksey-beloozerov-magical-voice-ora-recordings,0,0.4514758085009691,0.0,success,,Content-Legitimate
+onlybrands.com.br/loja/index.php?option=com_virtuemart&page=shop.browse&keyword=preta_____,1,0.6353229514859262,0.0,failed,"fetch_failed: HTTPConnectionPool(host='onlybrands.com.br', port=",FetchFailed-Phishing
+banyan-investments.com,0,0.5057673022227096,0.0,failed,"fetch_failed: HTTPConnectionPool(host='banyan-investments.com', ",FetchFailed-Phishing
+etecindsvc.com/8787/?sec=wiebke%20oldsen,1,0.4744272425029557,0.15,success,favicon_external_domain,Content-Legitimate
+anna-kravchuk.com/templates/beez3/index.html,1,0.6405069377647535,0.0,failed,"fetch_failed: HTTPConnectionPool(host='anna-kravchuk.com', port=",FetchFailed-Phishing
+fotobooph.com/wp-includes/css/dec.html,1,0.6250334713305713,0.0,failed,"fetch_failed: HTTPConnectionPool(host='fotobooph.com', port=80):",FetchFailed-Phishing
+ourdalilyupdtez.info/daily/att/loginprodx.att.net/commonlogin/igate_edam,1,0.5443094656794637,0.0,failed,"fetch_failed: HTTPConnectionPool(host='ourdalilyupdtez.info', po",FetchFailed-Phishing
+bnrwatersport.nl/home.html,1,0.5910994003564957,0.0,failed,"fetch_failed: HTTPSConnectionPool(host='bnrwatersport.nl', port=",FetchFailed-Phishing
+glenbow.org/collections/search/findingaids/index.cfm,0,0.5543018153985756,0.0,success,,Content-Uncertain
+portal.amr.pt,1,0.48784444689494494,0.0,failed,"fetch_failed: HTTPConnectionPool(host='portal.amr.pt', port=80):",Content-Failed
+blueanchor.nl/home/1-latest-news/56-dintelmarkt-vernieuwd.html?tmpl=component&print=1&page=,1,0.561081802709758,0.0,failed,"fetch_failed: HTTPSConnectionPool(host='blueanchor.nl', port=443",FetchFailed-Phishing
+hotlinegsm.com/products/mobile-and-tablet/htc-velocity-4g-vodafone-detail,1,0.6013495585192428,0.0,success,,Content-Uncertain
+ristorodelfalco.it/includes/viewdoc,1,0.5379433499886117,0.0,failed,"fetch_failed: HTTPSConnectionPool(host='www.ristorodelfalco.it',",FetchFailed-Phishing
+atandycraft.co.id,1,0.5733622725089276,0.0,failed,"fetch_failed: HTTPConnectionPool(host='atandycraft.co.id', port=",FetchFailed-Phishing
+pbase.com/zuiko40/seventies,0,0.6024954392453915,0.0,success,,Content-Uncertain
+risiinfo.com/pages/product/pulp-paper,0,0.4701089675512246,0.0,success,,Content-Legitimate
+acecam.com,0,0.5981827155717201,0.0,success,,Content-Uncertain
+agrisemm.com/customers?tmpl=component&print=1&page=,1,0.5512446296570819,0.0,success,,Content-Uncertain
+neues-atelierhaus-panzerhalle.de/veranstaltungen.html,1,0.5842032383532079,0.0,success,,Content-Uncertain
+humphreys.edu/faculty/jdecosta/register,0,0.45136978411906975,0.0,success,,Content-Legitimate
+jamaicaobserver.com/entertainment/rocksteady,0,0.6416911763398281,0.0,success,,Content-Uncertain
+sfhhz.com/contents/142/1760.html,1,0.5303808113774344,0.0,success,,Content-Legitimate
+nihonto.com/itemsalebooks.html,0,0.4943655422906281,0.4,success,form_action_external_domain,Content-Uncertain
+gurufocus.com/stockbuy.php?symbol=cinf,0,0.6053614824945086,0.0,success,,Content-Uncertain
